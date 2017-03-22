@@ -1,20 +1,16 @@
 import logging
 import re
-from six.moves.urllib.request import urlopen
-
 
 from flask import Flask
-from flask_ask import Ask, request, session, question, statement
-
+from flask_ask import Ask, session, question, statement
+from six.moves.urllib.request import urlopen
 
 app = Flask(__name__)
 ask = Ask(app, "/")
 logging.getLogger('flask_ask').setLevel(logging.DEBUG)
 
-
 # URL prefix to download history content from Wikipedia.
-URL_PREFIX = 'https://en.wikipedia.org/w/api.php?action=query&prop=extracts' + \
-    '&format=json&explaintext=&exsectionformat=plain&redirects=&titles='
+URL_PREFIX = 'https://de.wikipedia.org/w/api.php?action=query&prop=extracts&format=json&explaintext=&exsectionformat=plain&redirects=&titles='
 
 # Constant defining number of events to be read at one time.
 PAGINATION_SIZE = 3
@@ -34,20 +30,20 @@ SESSION_TEXT = 'text'
 
 @ask.launch
 def launch():
-    speech_output = 'History buff. What day do you want events for?'
-    reprompt_text = "With History Buff, you can get historical events for any day of the year. " + \
-                    "For example, you could say today, or August thirtieth. " + \
-                    "Now, which day do you want?"
+    speech_output = 'Für welchen Tag willst du Fakten?'
+    reprompt_text = "Ich kann dir historische Fakten für jeden Tag des Jahres nennen. " + \
+                    "Zum Beispiel für heute oder den dritten August. " + \
+                    "Für welchen Tag möchtest du historische Fakten? "
     return question(speech_output).reprompt(reprompt_text)
 
 
-@ask.intent('GetFirstEventIntent', convert={ 'day': 'date' })
+@ask.intent('GetFirstEventIntent', convert={'day': 'date'})
 def get_first_event(day):
     month_name = day.strftime('%B')
     day_number = day.day
     events = _get_json_events_from_wikipedia(month_name, day_number)
     if not events:
-        speech_output = "There is a problem connecting to Wikipedia at this time. Please try again later."
+        speech_output = "Ich kann mich zur Zeit nicht mit Wikipedia verbinden, bitte versuche es noch ein Mal zu einem späteren Zeitpunkt."
         return statement('<speak>{}</speak>'.format(speech_output))
     else:
         card_title = "Events on {} {}".format(month_name, day_number)
@@ -56,11 +52,9 @@ def get_first_event(day):
         for i in range(PAGINATION_SIZE):
             speech_output += "<p>{}</p>".format(events[i])
             card_output += "{}\n".format(events[i])
-        speech_output += " Wanna go deeper into history?"
-        card_output += " Wanna go deeper into history?"
-        reprompt_text = "With History Buff, you can get historical events for any day of the year. " + \
-                        "For example, you could say today, or August thirtieth. " + \
-                        "Now, which day do you want?"
+        speech_output += " Willst du noch mehr wissen?"
+        card_output += " Willst du noch mehr wissen?"
+        reprompt_text = "Ich kann dir historische Fakten für jeden Tag des Jahres nennen. Zum Beispiel für heute oder den dritten August. Für welchen Tag möchtest du historische Fakten? "
         session.attributes[SESSION_INDEX] = PAGINATION_SIZE
         session.attributes[SESSION_TEXT] = events
         speech_output = '<speak>{}</speak>'.format(speech_output)
@@ -71,7 +65,7 @@ def get_first_event(day):
 def get_next_event():
     events = session.attributes[SESSION_TEXT]
     index = session.attributes[SESSION_INDEX]
-    card_title = "More events on this day in history"
+    card_title = "Mehr historische Fakten zu diesem Tag. "
     speech_output = ""
     card_output = ""
     i = 0
@@ -80,8 +74,8 @@ def get_next_event():
         card_output += "{}\n".format(events[index])
         i += 1
         index += 1
-    speech_output += " Wanna go deeper into history?"
-    reprompt_text = "Do you want to know more about what happened on this date?"
+    speech_output += " Willst du noch mehr wissen?"
+    reprompt_text = "Willst du mehr darüber wissen, was am heutigen passiert ist?"
     session.attributes[SESSION_INDEX] = index
     speech_output = '<speak>{}</speak>'.format(speech_output)
     return question(speech_output).reprompt(reprompt_text).simple_card(card_title, card_output)
